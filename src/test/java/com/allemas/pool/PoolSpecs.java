@@ -30,7 +30,7 @@ public class PoolSpecs {
         pool.acquire();
         Assertions.assertEquals(2, pool.activeConnections());
         // should be not possible 3 > 2 (max pool size)
-        Assertions.assertThrows(IllegalAcquireException.class, pool::acquire);
+        Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
     }
 
     @Test
@@ -52,13 +52,18 @@ public class PoolSpecs {
         Assertions.assertEquals(3, atomicInteger.get());
         Assertions.assertEquals(3, pool.activeConnections());
 
-        Assertions.assertThrows(IllegalAcquireException.class, pool::acquire);
+        Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
     }
 
     @Test
-    public void verifyConnectionAcquiredAndRemovedFromPool() throws InterruptedException, SQLException {
-        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 1, 200), () ->
-        {
+    /**
+     * Validates the full lifecycle of a saturated pool with maxSize=1:
+     * acquire fills the pool, a second acquire throws, close releases
+     * the entity, and re-acquiring returns the same recycled instance.
+     * The pool is then saturated again, confirming the cycle is repeatable.
+     */
+    public void verifyConnectionAcquiredAndRemovedFromPool() throws Exception {
+        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 1, 200), () -> {
             try {
                 return DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
             } catch (SQLException e) {
@@ -68,15 +73,14 @@ public class PoolSpecs {
         Assertions.assertEquals(0, pool.activeConnections());
 
         var cnx = pool.acquire();
-        Assertions.assertThrows(IllegalAcquireException.class, pool::acquire);
+        Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
 
-        try {
-            cnx.close();
-        } catch (Exception e) {
-
-        }
+        cnx.close();
         Assertions.assertEquals(0, pool.activeConnections());
-
+        var cnx2 = pool.acquire();
+        Assertions.assertEquals(1, pool.activeConnections());
+        Assertions.assertEquals(cnx.getId(), cnx2.getId());
+        Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
     }
 
 

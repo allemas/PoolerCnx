@@ -7,6 +7,7 @@ import java.sql.Connection;
 
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class PoolEntity<T extends Connection> implements AutoCloseable {
@@ -18,10 +19,15 @@ public class PoolEntity<T extends Connection> implements AutoCloseable {
     private PoolState state = PoolState.UNKNOWN;
     private final int id;
 
-    public PoolEntity(Supplier<T> connexionBuilder) {
+    private Consumer<PoolEntity<T>> recycler;
+
+    public PoolEntity(Supplier<T> connexionBuilder, Consumer<PoolEntity<T>> askRecycling) {
         id = ID_GENERATOR.getAndIncrement();
         connexion = connexionBuilder.get();
         state = PoolState.IDLE;
+        recycler = askRecycling;
+
+        logger.info("Create entity#{}", id);
     }
 
     /**
@@ -31,11 +37,12 @@ public class PoolEntity<T extends Connection> implements AutoCloseable {
      */
     @Override
     public void close() throws Exception {
-        logger.info("close" + id + "connexion");
+        logger.info("close entity#{} (state was {})", id, state);
 
         if (state != PoolState.IN_USE)
             throw new IllegalStateConnexionException("This connexion is use");
         state = PoolState.IDLE;
+        recycler.accept(this);
     }
 
     public boolean isClosed() {
@@ -59,6 +66,10 @@ public class PoolEntity<T extends Connection> implements AutoCloseable {
 
     public T getConnexion() {
         return connexion;
+    }
+
+    public Integer getId() {
+        return id;
     }
 
     @Override

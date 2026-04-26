@@ -21,7 +21,7 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
 
     private void initPool() {
         for (int i = 0; i < this.poolConfig.initIdleConnexions(); i++) {
-            pool.add(new PoolEntity<>(cnxSupplier));
+            pool.add(new PoolEntity<>(cnxSupplier, this::recycle));
         }
     }
 
@@ -29,7 +29,7 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
         if (pool.size() >= poolConfig.maxSize())
             throw new IllegalStateConnexionException("Pool max size exceeded");
 
-        PoolEntity<T> poolEntity = new PoolEntity<>(cnxSupplier);
+        PoolEntity<T> poolEntity = new PoolEntity<>(cnxSupplier, this::recycle);
         pool.add(poolEntity);
         return poolEntity;
     }
@@ -55,5 +55,9 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
         return activesCnx;
     }
 
-
+    private void recycle(PoolEntity<T> entity) {
+        if (entity == null)
+            return;
+        activesCnx--;
+    }
 }
