@@ -27,10 +27,8 @@ Built as a hands-on way to dig into concurrent programming patterns
 Inspired by HikariCP, but with a deliberately simpler design
 to keep the code readable.
 
-## Status
-Work in progress. Currently focused on:
-- [x] Basic acquire / release lifecycle
-- [x] Eager initialization up to minIdle
-- [ ] Blocking acquire with timeout
-- [ ] Concurrent stress tests
-- [ ] Auto-tuning strategy
+## Notes
+Design decisions, trade-offs and pitfalls are tracked in
+[`DESIGN.md`](./DESIGN.md). The development workflow and how this
+project is built with an LLM as a thinking partner are documented in
+[`WORKING.md`](./WORKING.md).
