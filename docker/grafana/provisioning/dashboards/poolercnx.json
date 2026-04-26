@@ -1,0 +1,179 @@
+{
+  "title": "PoolerCnx – Connection Pool Observability",
+  "uid": "poolercnx-main",
+  "tags": ["poolercnx", "hikaricp", "database"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Active Connections",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "poolercnx_pool_active{application=\"poolercnx\"}",
+          "legendFormat": "active"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Idle Connections",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "poolercnx_pool_idle{application=\"poolercnx\"}",
+          "legendFormat": "idle"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Pending Threads",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area",
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 1 },
+            { "color": "red", "value": 5 }
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "poolercnx_pool_pending{application=\"poolercnx\"}",
+          "legendFormat": "pending"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "gauge",
+      "title": "Pool Utilization",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "minVizValue": 0,
+        "maxVizValue": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "poolercnx_pool_utilization{application=\"poolercnx\"}",
+          "legendFormat": "utilization"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Connection Pool State Over Time",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "expr": "poolercnx_pool_active{application=\"poolercnx\"}",
+          "legendFormat": "active"
+        },
+        {
+          "expr": "poolercnx_pool_idle{application=\"poolercnx\"}",
+          "legendFormat": "idle"
+        },
+        {
+          "expr": "poolercnx_pool_pending{application=\"poolercnx\"}",
+          "legendFormat": "pending threads"
+        },
+        {
+          "expr": "poolercnx_pool_total{application=\"poolercnx\"}",
+          "legendFormat": "total"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Query Duration (p99 / p95 / p50)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(poolercnx_query_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p99"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(poolercnx_query_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(poolercnx_query_duration_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p50 (median)"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "HikariCP – Connection Acquisition Time (p99)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "fieldConfig": {
+        "defaults": { "unit": "ns" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(hikaricp_pool_wait_seconds_bucket{pool=\"PoolerCnxPool\"}[1m])) by (le))",
+          "legendFormat": "wait p99"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "HikariCP – Connection Usage Time (p99)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "fieldConfig": {
+        "defaults": { "unit": "ns" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(hikaricp_pool_usage_seconds_bucket{pool=\"PoolerCnxPool\"}[1m])) by (le))",
+          "legendFormat": "usage p99"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+target/
+.mvn/wrapper/
+*.class
+*.jar
+!**/src/main/**/*.jar
+
+# IDE
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
