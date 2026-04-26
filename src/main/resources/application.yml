@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: poolercnx
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/poolercnx
+    username: pooler
+    password: pooler
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      pool-name: PoolerCnxPool
+      # Maximum number of connections the pool will keep open.
+      # Requests that arrive when the pool is exhausted will wait up to
+      # connection-timeout ms before failing with a timeout exception.
+      maximum-pool-size: 10
+      # Minimum number of idle connections HikariCP tries to maintain.
+      minimum-idle: 2
+      # Maximum time (ms) a caller waits to obtain a connection.
+      connection-timeout: 30000
+      # Maximum time (ms) a connection may sit idle before it is removed.
+      idle-timeout: 600000
+      # Maximum lifetime (ms) of any connection in the pool.
+      max-lifetime: 1800000
+      # Validation query used to verify that a borrowed connection is alive.
+      connection-test-query: SELECT 1
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Expose health, info, metrics and the Prometheus scrape endpoint
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      # Common labels added to every metric
+      application: ${spring.application.name}
+
+logging:
+  level:
+    com.poolercnx: INFO
+    com.zaxxer.hikari: DEBUG

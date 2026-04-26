@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+    hikari:
+      pool-name: PoolerCnxTestPool
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 5000
+      connection-test-query: SELECT 1

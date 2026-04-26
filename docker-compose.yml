@@ -1,0 +1,69 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: poolercnx-postgres
+    environment:
+      POSTGRES_DB: poolercnx
+      POSTGRES_USER: pooler
+      POSTGRES_PASSWORD: pooler
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pooler -d poolercnx"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Application ───────────────────────────────────────────────────────────
+  app:
+    build: .
+    container_name: poolercnx-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/poolercnx
+      SPRING_DATASOURCE_USERNAME: pooler
+      SPRING_DATASOURCE_PASSWORD: pooler
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Prometheus ────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: poolercnx-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - app
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: poolercnx-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  pgdata:
+  grafanadata:
