@@ -6,24 +6,37 @@ import org.junit.jupiter.api.Test;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.function.Supplier;
 
 public class AcquireJDBCPooledConnexions {
 
-
-    @Test
-    public void acquireSimpleConnexionFromPool() throws SQLException, InterruptedException {
-        DefaultPool<Connection> pooler = new DefaultPool<>(PoolConfig.auto(), () -> {
+    private static Supplier<Connection> h2Supplier() {
+        return () -> {
             try {
                 return DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
             } catch (SQLException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Failed to create H2 connection", e);
             }
-        });
+        };
+    }
 
-        try (Connection connection = pooler.acquire()) {
-            connection.createStatement().execute(
-                    "CREATE TABLE IF NOT EXISTS test(id INT PRIMARY KEY, name VARCHAR(255))"
-            );
+
+    @Test
+    /**
+     * Usage: always wrap acquire() in try-with-resources on the PoolEntity,
+     * NOT on the Connection itself. Calling close() on the underlying Connection
+     * will permanently destroy it — use entity.close() (or release()) instead
+     * to return it to the pool.
+     */
+    public void acquireSimpleConnexionFromPool() throws SQLException, InterruptedException {
+        DefaultPool<Connection> pooler = new DefaultPool<>(PoolConfig.auto(), h2Supplier());
+
+        try (PoolEntity<Connection> entity = pooler.acquire()) {
+            entity.getConnexion()
+                    .createStatement()
+                    .execute("CREATE TABLE IF NOT EXISTS test(id INT PRIMARY KEY, name VARCHAR(255))");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -31,17 +44,9 @@ public class AcquireJDBCPooledConnexions {
     public void tryAcquireTwice() throws SQLException, InterruptedException {
         DefaultPool<Connection> pooler = new DefaultPool<>(
                 new PoolConfig(1, 1, 200)
-                , () -> {
-            try {
-                return DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        Thread.sleep(1000);
-
+                , h2Supplier());
         pooler.acquire();
-        Assertions.assertThrows(IllegalAcquire.class, pooler::acquire);
+        Assertions.assertThrows(IllegalAcquireException.class, pooler::acquire);
     }
 
 

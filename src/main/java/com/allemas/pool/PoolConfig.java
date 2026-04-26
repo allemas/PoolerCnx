@@ -1,8 +1,13 @@
 package com.allemas.pool;
 
 public record PoolConfig(
-        int minSize, int maxSize, int acquireTimeout
+        int initIdleConnexions, int maxSize, int acquireTimeout
 ){
+    public PoolConfig{
+        if (initIdleConnexions > maxSize){
+            throw new IllegalArgumentException("min connexion size could not be greater than max size");
+        }
+    }
 
     public static PoolConfig auto(){
         return new PoolConfig(2,4,200);
@@ -10,6 +15,6 @@ public record PoolConfig(
 
     @Override
     public String toString() {
-        return "PoolConfig{minSize=" + minSize + ", maxSize=" + maxSize + ", acquireTimeout=" + acquireTimeout+"}";
+        return "PoolConfig{initIdleConnexions=" + initIdleConnexions + ", maxSize=" + maxSize + ", acquireTimeout=" + acquireTimeout+"}";
     }
 };
