@@ -1,14 +1,13 @@
 package com.poolercnx;
 
+import com.poolercnx.controller.PoolController;
 import com.poolercnx.model.PoolStatus;
 import com.poolercnx.model.QueryResult;
 import com.poolercnx.service.QueryService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,6 +24,13 @@ class PoolerCnxApplicationTests {
 
     @Autowired
     private QueryService queryService;
+
+    @AfterEach
+    void cleanup() {
+        if (queryService.isLoadRunning()) {
+            queryService.stopLoad();
+        }
+    }
 
     // ------------------------------------------------------------------ query
 
@@ -50,21 +56,21 @@ class PoolerCnxApplicationTests {
 
     @Test
     void getPoolStatus_activeConnectionsIncreaseDuringLoad() throws InterruptedException {
-        // Warm up the pool with one query before measuring
+        // Warm up the pool so the baseline has 0 active connections
         queryService.executeQuery("SELECT 1");
+        Thread.sleep(50);
 
         PoolStatus before = queryService.getPoolStatus();
 
-        // Run a burst of 3 concurrent queries and sample pool state mid-flight
+        // Start workers that each hold a connection for 500 ms and wait
+        // 250 ms (midway) for them to be in-flight before sampling.
         queryService.startLoad(3, 500);
-        Thread.sleep(200); // let workers acquire connections
+        Thread.sleep(250);
 
         PoolStatus during = queryService.getPoolStatus();
-        queryService.stopLoad();
 
-        // During the load the pool must have issued at least one active connection
-        // (the exact number depends on thread scheduling, so we just assert > 0)
-        assertThat(during.activeConnections()).isGreaterThanOrEqualTo(0);
+        // During the load the active connection count must exceed the baseline
+        assertThat(during.activeConnections()).isGreaterThan(before.activeConnections());
     }
 
     // ---------------------------------------------------------------- load simulation
@@ -86,6 +92,13 @@ class PoolerCnxApplicationTests {
         // Second call must not throw and must not start a second executor
         queryService.startLoad(2, 200);
         assertThat(queryService.isLoadRunning()).isTrue();
-        queryService.stopLoad();
+    }
+
+    // --------------------------------------------------------- query whitelist
+
+    @Test
+    void allowedQueries_containsExpectedStatements() {
+        assertThat(PoolController.ALLOWED_QUERIES).contains("SELECT 1");
+        assertThat(PoolController.ALLOWED_QUERIES).doesNotContain("DROP TABLE users");
     }
 }

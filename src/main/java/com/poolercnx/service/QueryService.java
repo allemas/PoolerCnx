@@ -62,8 +62,11 @@ public class QueryService {
     }
 
     /**
-     * Executes {@code SELECT 1} (or {@code SELECT 1 FROM DUAL} on Oracle-like
-     * databases) and returns timing and connection metadata.
+     * Executes the provided SQL query through the connection pool and returns
+     * timing and connection metadata.
+     *
+     * <p>Only whitelisted queries are accepted; see
+     * {@link com.poolercnx.controller.PoolController#ALLOWED_QUERIES}.</p>
      */
     public QueryResult executeQuery(String sql) {
         long start = System.currentTimeMillis();
