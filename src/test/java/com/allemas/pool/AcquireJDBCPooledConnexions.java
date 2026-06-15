@@ -46,7 +46,7 @@ public class AcquireJDBCPooledConnexions {
                 new PoolConfig(1, 1, 200)
                 , h2Supplier());
         pooler.acquire();
-        Assertions.assertThrows(IllegalAcquireException.class, pooler::acquire);
+        Assertions.assertThrows(IllegalStateConnexionException.class, pooler::acquire);
     }
 
 

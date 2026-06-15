@@ -1,6 +1,5 @@
 package com.allemas.pool;
 
-
 import java.sql.Connection;
 import java.util.*;
 import java.util.function.Supplier;

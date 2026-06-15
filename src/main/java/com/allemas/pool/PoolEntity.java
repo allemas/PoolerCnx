@@ -16,7 +16,7 @@ public class PoolEntity<T extends Connection> implements AutoCloseable {
 
     private static final AtomicInteger ID_GENERATOR = new AtomicInteger(0);
     private final T connexion;
-    private PoolState state = PoolState.UNKNOWN;
+    private PoolState state = PoolState.CLOSED;
     private final int id;
 
     private Consumer<PoolEntity<T>> recycler;
