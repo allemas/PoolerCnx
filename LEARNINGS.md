@@ -44,7 +44,10 @@ readable and tests deterministic.
 **Tests** — unit tests use a `StubCnx` test double to exercise the
 lifecycle without JDBC overhead. JDBC integration tests run against
 an in-memory H2 database and verify that the design doesn't break
-the contract of the wrapped resource.
+the contract of the wrapped resource. A separate concurrency
+exploration suite documents what happens when multiple threads
+share a single connection or statement — the empirical case for
+why a pool exists.
 
 ## Learnings
 
@@ -80,3 +83,69 @@ the contract of the wrapped resource.
   means `PoolEntity` can be tested without any pool at all — pass any
   `Consumer` that records what it receives, and the entity's lifecycle
   is fully observable in isolation.
+
+- **A JDBC connection serializes work, it does not parallelize.** I
+  ran two threads issuing long-running queries on a shared connection,
+  each with its own `Statement`. H2 serializes them at the connection
+  level: the second query waits for the first to finish, total time
+  ≈ 2× a single query. The lock spans the entire span of execute +
+  `ResultSet` consumption, not just execute. A thread reading a slow
+  `ResultSet` blocks every other thread sharing that connection until
+  the read is done. This is the empirical justification for handing
+  out distinct connections to distinct callers.
+
+  **Important caveat:** Initial tests with identical queries appeared
+  to show parallelism (both threads ~1200ms) because H2 cached the
+  second query's results. Adding `RANDOM()` to the SELECT revealed
+  the true serialization: Thread 1 took ~1734ms, Thread 2 took ~3359ms
+  (blocked ~1661ms waiting + executed ~1652ms + consumed ResultSet).
+  The blocking happens inside `executeQuery()` — both threads call it
+  simultaneously, one acquires the connection lock and proceeds, the
+  other blocks until the first completes. See query caching learning
+  below for benchmark implications.
+
+- **Sharing a `Statement` across threads breaks per the JDBC spec.**
+  When two threads call `executeQuery` on the same `Statement`, the
+  second call implicitly closes the first thread's `ResultSet`
+  ([Java SE 21 Statement
+  Javadoc](https://docs.oracle.com/en/java/javase/21/docs/api/java.sql/java/sql/Statement.html)).
+  The first thread crashes on the next `next()` with "object is
+  already closed". Which thread crashes is order-dependent — a
+  textbook race. The driver fails loud rather than silently
+  corrupting the read, which is a sound design choice on the spec
+  side.
+
+- **Beware of query result caching when benchmarking concurrency.**
+  Running identical queries can trigger result caching, not just plan
+  caching. When testing connection-level serialization, both threads
+  ran the same query. Thread 1 executed normally (~1039ms), but Thread 2's
+  identical query returned in ~65ms instead of ~1039ms because H2 served
+  cached results. This made serialization invisible: both threads reported
+  similar total times (~1200ms), falsely suggesting parallelism. The
+  second thread was blocked ~1047ms in `executeQuery()` waiting for the
+  connection lock, then its query returned instantly from cache. Using
+  `RANDOM()` in the SELECT or unique WHERE clauses forces re-execution
+  and reveals true serialization timings. This is not a bug — it is
+  exactly what production caches do — but it falsifies any concurrency
+  benchmark that does not vary its inputs. Always use non-cacheable
+  queries when measuring connection-level behavior.
+
+- **Distinct connections enable true parallelism.** Repeating the
+  same workload with two threads each receiving its own connection
+  from the pool drops the total time from ~2× to ~1.4× a single
+  query — the remaining overhead being CPU contention, not
+  connection-level serialization. Two distinct H2 sessions appear
+  in the trace logs (`jdbc[3]` and `jdbc[4]`), and their query
+  timings overlap rather than chain. This is the empirical payoff
+  of the entire design: the pool exists to remove the
+  connection-level bottleneck observed in the previous learnings.
+
+- **The pool itself is not yet thread-safe — and the state machine
+  caught it.** A first attempt with two threads each calling
+  `pool.acquire()` concurrently handed out the same `PoolEntity` to
+  both: the scan-then-mark sequence in `acquire()` is not atomic, so
+  both threads found the same idle entry before either could mark it
+  IN_USE. The bug surfaced loudly because `close()`'s state guard
+  threw on the second release ("must be IN_USE, was IDLE") rather
+  than silently corrupting the pool's bookkeeping. This is the
+  natural entry point for the upcoming concurrency phase.
