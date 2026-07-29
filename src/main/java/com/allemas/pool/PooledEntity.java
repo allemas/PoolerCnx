@@ -72,4 +72,8 @@ public class PooledEntity<T extends Connection> implements AutoCloseable {
         return new PooledEntity<>(id, connexionBuilder, askRecycling);
     }
 
+    public State getState() {
+        return state;
+    }
+
 }

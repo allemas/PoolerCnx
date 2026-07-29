@@ -49,5 +49,21 @@ public class AcquireJDBCPooledConnexions {
         Assertions.assertThrows(IllegalStateConnexionException.class, pooler::acquire);
     }
 
+    @Test
+    public void tryAcquireCloseAndCheckStatus() throws Exception {
+        DefaultPool<Connection> pooler = new DefaultPool<>(
+                new PoolConfig(1, 1, 200)
+                , h2Supplier());
 
+        PooledEntity<Connection> cnx = pooler.acquire();
+        Integer id = cnx.getId();
+        Assertions.assertNotNull(cnx);
+
+        Assertions.assertEquals(cnx.getState(), State.IN_USE);
+        cnx.close();
+
+        Assertions.assertEquals(cnx.getState(), State.IDLE);
+        Assertions.assertEquals(cnx.getId(), id);
+
+    }
 }
