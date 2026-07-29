@@ -14,10 +14,10 @@ The goal is not to build a production-ready pool, but to better understand:
 - how simple feedback loops can adjust system behavior
 
 ## What it does
-- Implements a minimal connection pool
-- Simulates concurrent access with multiple threads
-- Tracks basic metrics (active connections, wait time, etc.)
-- Applies a naive auto-tuning strategy to adjust pool size
+- Manages a pool of JDBC connections with configurable `minIdle` and `maxSize`
+- Tracks connection state through an explicit state machine (`IDLE`, `ACQUIRED`, `CLOSED`)
+- Detects connections closed externally (e.g. by the database server) via a background scanner
+- Enforces acquisition limits and throws on saturation
 
 ## Why
 Built as a hands-on way to dig into concurrent programming patterns
@@ -30,5 +30,5 @@ to keep the code readable.
 ## Notes
 Design decisions, trade-offs and pitfalls are tracked in
 [`DESIGN.md`](./DESIGN.md). The development workflow and how this
-project is built with an LLM as a thinking partner are documented in
+project is built with an LLM as a sounding board are documented in
 [`WORKING.md`](./WORKING.md).

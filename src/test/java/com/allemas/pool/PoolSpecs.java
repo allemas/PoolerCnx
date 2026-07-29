@@ -9,7 +9,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PoolSpecs extends PoolConfigurationTools {
@@ -19,7 +18,7 @@ public class PoolSpecs extends PoolConfigurationTools {
     @Test
     public void verifyInstantiationConnexion() {
         AtomicInteger atomicInteger = new AtomicInteger(0);
-        DefaultPool<StubCnx> pool = new DefaultPool<>(new PoolConfig(5, 20, 200), () -> new StubCnx(atomicInteger));
+        DefaultPool<StubCnx> pool = new DefaultPool<>(new PoolConfig(5, 20, 200, 100, 500, 500, 800), () -> new StubCnx(atomicInteger));
 
         Assertions.assertEquals(5, atomicInteger.get());
         Assertions.assertEquals(atomicInteger.get(), pool.size());
@@ -28,13 +27,14 @@ public class PoolSpecs extends PoolConfigurationTools {
     @Test
     public void verifyConnectionAcquired() throws InterruptedException {
         AtomicInteger atomicInteger = new AtomicInteger(0);
-        DefaultPool<StubCnx> pool = new DefaultPool<>(new PoolConfig(1, 2, 200), () -> new StubCnx(atomicInteger));
+        DefaultPool<StubCnx> pool = new DefaultPool<>(new PoolConfig(1, 2, 200, 100, 500, 500, 800), () -> new StubCnx(atomicInteger));
 
-        Assertions.assertEquals(0, pool.activeConnections());
+        Assertions.assertEquals(0, pool.acquiredConnexions());
         pool.acquire();
-        Assertions.assertEquals(1, pool.activeConnections());
+        Assertions.assertEquals(1, pool.acquiredConnexions());
         pool.acquire();
-        Assertions.assertEquals(2, pool.activeConnections());
+        Assertions.assertEquals(2, pool.acquiredConnexions());
+
         // should be not possible 3 > 2 (max pool size)
         Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
     }
@@ -42,21 +42,21 @@ public class PoolSpecs extends PoolConfigurationTools {
     @Test
     public void verifyConnectionAcquiredAndAddedToPool() throws InterruptedException {
         AtomicInteger atomicInteger = new AtomicInteger(0);
-        DefaultPool<StubCnx> pool = new DefaultPool<>(new PoolConfig(1, 3, 200), () -> new StubCnx(atomicInteger));
+        DefaultPool<StubCnx> pool = new DefaultPool<>(new PoolConfig(1, 3, 200, 100, 500, 500, 800), () -> new StubCnx(atomicInteger));
         Assertions.assertEquals(1, atomicInteger.get());
-        Assertions.assertEquals(0, pool.activeConnections());
+        Assertions.assertEquals(0, pool.acquiredConnexions());
 
         pool.acquire();
         Assertions.assertEquals(1, atomicInteger.get());
-        Assertions.assertEquals(1, pool.activeConnections());
+        Assertions.assertEquals(1, pool.acquiredConnexions());
 
         pool.acquire();
         Assertions.assertEquals(2, atomicInteger.get());
-        Assertions.assertEquals(2, pool.activeConnections());
+        Assertions.assertEquals(2, pool.acquiredConnexions());
 
         pool.acquire();
         Assertions.assertEquals(3, atomicInteger.get());
-        Assertions.assertEquals(3, pool.activeConnections());
+        Assertions.assertEquals(3, pool.acquiredConnexions());
 
         Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
     }
@@ -69,22 +69,22 @@ public class PoolSpecs extends PoolConfigurationTools {
      * The pool is then saturated again, confirming the cycle is repeatable.
      */
     public void verifyConnectionAcquiredAndRemovedFromPool() throws Exception {
-        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 1, 200), () -> {
+        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 1, 200,100, 500, 500, 800), () -> {
             try {
                 return DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
         });
-        Assertions.assertEquals(0, pool.activeConnections());
+        Assertions.assertEquals(0, pool.acquiredConnexions());
 
         var cnx = pool.acquire();
         Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
 
         cnx.close();
-        Assertions.assertEquals(0, pool.activeConnections());
+        Assertions.assertEquals(0, pool.acquiredConnexions());
         var cnx2 = pool.acquire();
-        Assertions.assertEquals(1, pool.activeConnections());
+        Assertions.assertEquals(1, pool.acquiredConnexions());
         Assertions.assertEquals(cnx.getId(), cnx2.getId());
         Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
     }
@@ -92,7 +92,7 @@ public class PoolSpecs extends PoolConfigurationTools {
     @Test
     public void tryAcquireConnectionMultiThreaded() throws InterruptedException {
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 1, 200), h2Supplier());
+        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 1, 200,100, 500, 500, 800), h2Supplier());
 
         Thread thread1 = new Thread(() -> {
             try {

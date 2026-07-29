@@ -43,11 +43,27 @@ public class AcquireJDBCPooledConnexions {
     @Test
     public void tryAcquireTwice() throws SQLException, InterruptedException {
         DefaultPool<Connection> pooler = new DefaultPool<>(
-                new PoolConfig(1, 1, 200)
+                new PoolConfig(1, 1, 200,100, 500, 500, 800)
                 , h2Supplier());
         pooler.acquire();
         Assertions.assertThrows(IllegalStateConnexionException.class, pooler::acquire);
     }
 
+    @Test
+    public void tryAcquireCloseAndCheckStatus() throws Exception {
+        DefaultPool<Connection> pooler = new DefaultPool<>(
+                new PoolConfig(1, 1, 200,100, 500, 500, 800)
+                , h2Supplier());
 
+        PooledEntity<Connection> cnx = pooler.acquire();
+        Integer id = cnx.getId();
+        Assertions.assertNotNull(cnx);
+
+        Assertions.assertEquals(cnx.getState(), State.ACQUIRED);
+        cnx.close();
+
+        Assertions.assertEquals(cnx.getState(), State.IDLE);
+        Assertions.assertEquals(cnx.getId(), id);
+
+    }
 }

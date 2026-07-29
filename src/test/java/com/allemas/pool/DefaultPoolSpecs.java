@@ -43,7 +43,7 @@ public class DefaultPoolSpecs {
     @Test
     public void tryAcquireTwice() throws SQLException, InterruptedException {
         DefaultPool<Connection> pooler = new DefaultPool<>(
-                new PoolConfig(1, 1, 200)
+                new PoolConfig(1, 1, 200, 100, 500, 500, 800)
                 , h2Supplier());
         pooler.acquire();
         Assertions.assertThrows(IllegalStateConnexionException.class, pooler::acquire);
