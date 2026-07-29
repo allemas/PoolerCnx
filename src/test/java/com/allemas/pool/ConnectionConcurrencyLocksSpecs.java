@@ -1,6 +1,5 @@
 package com.allemas.pool;
 
-import org.h2.jdbc.JdbcSQLNonTransientConnectionException;
 import org.h2.jdbc.JdbcSQLNonTransientException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -8,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -89,56 +87,56 @@ public class ConnectionConcurrencySpecs {
     @Test
     public void concurrent_use_of_same_connection_and_statement_throws() throws Exception {
         DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 4, 200), h2Supplier());
-        try (PoolEntity<Connection> entity = pool.acquire()) {
-            log.info("Thread - Create thread and executes queries with the SAME statement");
-            Statement st = entity.getConnexion().createStatement();
-            CountDownLatch start = new CountDownLatch(1);
-            AtomicReference<Exception> ex = new AtomicReference<>();
+        PooledEntity<Connection> entity = pool.acquire();
+        log.info("Thread - Create thread and executes queries with the SAME statement");
+        Statement st = entity.getConnexion().createStatement();
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicReference<Exception> ex = new AtomicReference<>();
 
-            Thread a = createThread(st, start, ex, null);
-            Thread b = createThread(st, start, ex, null);
-            a.start();
-            b.start();
-            start.countDown();
+        Thread a = createThread(st, start, ex, null);
+        Thread b = createThread(st, start, ex, null);
+        a.start();
+        b.start();
+        start.countDown();
 
-            a.join();
-            b.join();
-            st.close();
+        a.join();
+        b.join();
+        st.close();
 
-            Exception c = ex.get();
-            log.error(c.getMessage(), c);
+        Exception c = ex.get();
+        log.error(c.getMessage(), c);
 
-            Assertions.assertNotNull(c);
-            Assertions.assertEquals(ex.get().getClass(), JdbcSQLNonTransientException.class);
+        Assertions.assertNotNull(c);
+        Assertions.assertEquals(ex.get().getClass(), JdbcSQLNonTransientException.class);
 
-        }
+
     }
 
 
     @Test
     public void concurrent_use_of_same_connection_with_dedicated_statement() throws Exception {
         DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 4, 200), h2Supplier());
-        try (PoolEntity<Connection> entity = pool.acquire()) {
-            CountDownLatch start = new CountDownLatch(1);
+        PooledEntity<Connection> entity = pool.acquire();
+        CountDownLatch start = new CountDownLatch(1);
 
-            AtomicReference<Exception> ex = new AtomicReference<>();
-            AtomicLong timeElapsed1 = new AtomicLong();
-            AtomicLong timeElapsed2 = new AtomicLong();
+        AtomicReference<Exception> ex = new AtomicReference<>();
+        AtomicLong timeElapsed1 = new AtomicLong();
+        AtomicLong timeElapsed2 = new AtomicLong();
 
-            log.info("Thread - create threads with dedicated statement");
-            Thread a = createThread(entity.getConnexion().createStatement(), start, ex, timeElapsed1);
-            Thread b = createThread(entity.getConnexion().createStatement(), start, ex, timeElapsed2);
+        log.info("Thread - create threads with dedicated statement");
+        Thread a = createThread(entity.getConnexion().createStatement(), start, ex, timeElapsed1);
+        Thread b = createThread(entity.getConnexion().createStatement(), start, ex, timeElapsed2);
 
-            a.start();
-            b.start();
-            start.countDown();
+        a.start();
+        b.start();
+        start.countDown();
 
-            a.join();
-            b.join();
+        a.join();
+        b.join();
 
-            log.info("Thread 1 took {}ms, Thread 2 took {}ms", timeElapsed1.get(), timeElapsed2.get());
-            Assertions.assertTrue(timeElapsed2.get() > timeElapsed1.get());
-        }
+        log.info("Thread 1 took {}ms, Thread 2 took {}ms", timeElapsed1.get(), timeElapsed2.get());
+        Assertions.assertTrue(timeElapsed2.get() > timeElapsed1.get());
+
     }
 
 
@@ -149,13 +147,13 @@ public class ConnectionConcurrencySpecs {
 
         AtomicReference<Exception> exception1 = new AtomicReference<>();
         AtomicReference<Exception> exception2 = new AtomicReference<>();
-        PoolEntity<Connection> entity = pool.acquire();
+        PooledEntity<Connection> entity = pool.acquire();
         AtomicLong timeElapsed1 = new AtomicLong();
         AtomicLong timeElapsed2 = new AtomicLong();
 
         Thread a = createThread(entity.getConnexion().createStatement(), start, exception1, timeElapsed1);
 
-        PoolEntity<Connection> entity2 = pool.acquire();
+        PooledEntity<Connection> entity2 = pool.acquire();
         Thread b = createThread(entity2.getConnexion().createStatement(), start, exception2, timeElapsed2);
 
         a.start();

@@ -46,3 +46,8 @@ The intent is that the resulting code is fully understood by the human
 who wrote it — not "AI-assisted" in the sense of being half-authored
 externally, but "AI-rubber-ducked" in the sense of having had a sparring
 partner during reflection.
+
+- **Commit and work organisation**: the LLM helps review staged changes,
+  suggest commit messages consistent with the project's convention, and
+  flag anything worth splitting or unstaged before committing. The human
+  always makes the final call on what goes in and when.
