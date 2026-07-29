@@ -1,55 +1,49 @@
 package com.allemas.pool;
 
-
-
-
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class DefaultPool<T extends Connection> implements Pool<T> {
-
-    private final static Logger LOGGER = Logger.getLogger(DefaultPool.class.getName());
-
     final private PoolConfig poolConfig;
-    private List<PooledConnexion<T>> pool;
+    private List<PooledEntity<T>> pool;
     private Supplier<T> cnxSupplier;
 
-    private ScheduledExecutorService executor;
+    private int activesCnx;
+    private int createdCnx = 0;
 
     public DefaultPool(PoolConfig config, Supplier<T> connexionBuilder) {
         poolConfig = config;
         cnxSupplier = connexionBuilder;
         pool = new ArrayList<>();
-        executor = Executors.newScheduledThreadPool(1);
         initPool();
-        setKeepAlive();
-    }
-
-    private void setKeepAlive() {
-        this.executor
-                .scheduleAtFixedRate(
-                        this::keepAliveChecking, 0, 100, TimeUnit.MILLISECONDS);
     }
 
     private void initPool() {
-        int minSize = this.poolConfig.minSize();
-        for (int i = 0; i < minSize; i++) {
-            pool.add(new PooledConnexion<>(cnxSupplier));
+        for (int i = 0; i < this.poolConfig.initIdleConnexions(); i++) {
+            pool.add(new PooledEntity<>(this.getCnxIdentity(), cnxSupplier, this::recycle));
         }
     }
 
+    private PooledEntity<T> buildNewPoolEntity() {
+        if (pool.size() >= poolConfig.maxSize())
+            throw new IllegalStateConnexionException("Pool max size exceeded");
+
+        PooledEntity<T> poolEntity = PooledEntity.build(this.getCnxIdentity(), cnxSupplier, this::recycle);
+        pool.add(poolEntity);
+        return poolEntity;
+    }
+
     @Override
-    public T acquire() throws InterruptedException {
-        var cnx = this.pool.stream().filter(connexion -> !connexion.isClosed() && !connexion.isActive()).findFirst().orElseThrow(IllegalAcquire::new);
-        cnx.setActive();
-        return cnx.getConnexion();
+    public PooledEntity<T> acquire() {
+        var cnx = this.pool.stream()
+                .filter(PooledEntity::isIdle)
+                .findFirst()
+                .orElseGet(this::buildNewPoolEntity);
+        cnx.markUsed();
+        activesCnx++;
+
+        return cnx;
     }
 
     @Override
@@ -57,24 +51,19 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
         return pool.size();
     }
 
-
-    public Runnable keepAliveChecking() {
-        return () -> {
-            LOGGER.info("message to log RUNNING");
-            pool.stream().forEach(connexion -> {
-                try {
-                    if (connexion.getConnexion().isClosed()) {
-                        this.recycle(connexion);
-                    }
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        };
+    public int activeConnections() {
+        return activesCnx;
     }
 
-    public void recycle(PooledConnexion<T> connexion) {
-        pool.remove(connexion);
+    private void recycle(PooledEntity<T> entity) {
+        if (entity == null)
+            return;
+        activesCnx--;
+    }
+
+    private int getCnxIdentity() {
+        createdCnx++;
+        return createdCnx;
     }
 
 }
