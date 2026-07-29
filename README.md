@@ -1,34 +1,45 @@
 # PoolerCnx
 
-## Disclaimer
-This is a toy project built for learning and experimentation.
-Do not use it in production 🙂
+A hand-built JDBC connection pool, written from scratch as a learning exercise.
+Not production-ready — that's the point.
 
-## About
-A small personal project to explore how database connection pools work
-and how they could be tuned dynamically at runtime.
+## Why build this
 
-The goal is not to build a production-ready pool, but to better understand:
-- how connections are managed under load
-- how contention appears when resources are limited
-- how simple feedback loops can adjust system behavior
+Connection pools are everywhere, but few developers have looked inside one.
+This project is an attempt to understand what's actually happening: how connections
+are tracked, what breaks under concurrency, how a pool recovers from failures,
+and what it takes to make something reliable under load.
 
-## What it does
-- Manages a pool of JDBC connections with configurable `minIdle` and `maxSize`
-- Tracks connection state through an explicit state machine (`IDLE`, `ACQUIRED`, `CLOSED`)
-- Detects connections closed externally (e.g. by the database server) via a background scanner
-- Enforces acquisition limits and throws on saturation
+The reference is HikariCP — one of the fastest and most widely used pools in the
+JVM ecosystem. The goal isn't to replicate it, but to rediscover its mechanics
+from first principles and understand why each design choice exists.
 
-## Why
-Built as a hands-on way to dig into concurrent programming patterns
-(locks, conditions, atomic state) and pool design trade-offs
-(min/max sizing, saturation handling, recycling vs destruction).
+## What's implemented
 
-Inspired by HikariCP, but with a deliberately simpler design
-to keep the code readable.
+- Pool lifecycle with configurable `minIdle` and `maxSize`
+- Explicit state machine per connection (`IDLE`, `ACQUIRED`, `CLOSED`)
+- Background scanner to detect connections closed externally (database restart,
+  network drop, server timeout)
+- Vacuum task that removes dead connections and recreates them to maintain `minIdle`
+- Acquisition enforced — throws immediately when the pool is saturated
 
-## Notes
-Design decisions, trade-offs and pitfalls are tracked in
-[`DESIGN.md`](./DESIGN.md). The development workflow and how this
-project is built with an LLM as a sounding board are documented in
-[`WORKING.md`](./WORKING.md).
+> ⚠️ Single-threaded only. The implementation is not thread-safe yet —
+> concurrent acquisition is the next problem to solve.
+
+## What's next
+
+- Thread-safe acquisition without a global lock
+- Blocking acquire with configurable timeout
+- Connection validation before handing out
+- Basic metrics (wait time, saturation rate)
+- Dynamic pool sizing based on observed load
+
+## How it's built
+
+Every decision is made consciously before being coded. Design choices and the
+alternatives that were considered are tracked in [`DESIGN.md`](./DESIGN.md).
+
+Development follows strict TDD: the test comes first, defines what's needed,
+then the implementation follows. No code without a failing test asking for it.
+
+The process is documented in [`WORKING.md`](./WORKING.md).
