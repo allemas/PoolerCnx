@@ -70,4 +70,26 @@ public class AcquireAndCloseJDBCPooledCnx {
         Assertions.assertEquals(pooler.acquiredConnexions(), 0);
     }
 
+    @Test
+    public void tryAcquireCloseAndCheckClosedState() throws SQLException, InterruptedException {
+        DefaultPool<Connection> pooler = new DefaultPool<>(
+                new PoolConfig(1, 1, 200)
+                , h2Supplier());
+        PooledEntity<Connection> cnx = pooler.acquire();
+        Assertions.assertNotNull(cnx);
+        Assertions.assertFalse(cnx.getConnexion().isClosed());
+        Assertions.assertEquals(pooler.acquiredConnexions(), 1);
+        Assertions.assertEquals(State.ACQUIRED, cnx.getState());
+        cnx.getConnexion().close();
+
+        Thread.sleep(100);
+        Assertions.assertTrue(cnx.getConnexion().isClosed());
+        Assertions.assertEquals(State.CLOSED, cnx.getState());
+        Assertions.assertEquals(pooler.acquiredConnexions(), 0);
+
+        Assertions.assertThrows(IllegalStateConnexionException.class, () -> pooler.acquire());
+
+
+    }
+
 }

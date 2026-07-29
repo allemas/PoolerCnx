@@ -45,7 +45,7 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
                 .findFirst()
                 .orElseGet(() -> {
                     if (pool.size() >= poolConfig.maxSize())
-                        throw new IllegalStateConnexionException("Pool max size exceeded");
+                        throw new IllegalStateConnexionException("Pool max size exceeded or should be recycled");
 
                     PooledEntity<T> poolEntity = PooledEntity.build(this.getCnxIdentity(), cnxSupplier);
                     pool.add(poolEntity);
