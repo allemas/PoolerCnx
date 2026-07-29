@@ -32,7 +32,7 @@ public class AcquireAndCloseJDBCPooledCnx {
     @Test
     public void tryAcquireCloseAndCheckState() throws SQLException {
         DefaultPool<Connection> pooler = new DefaultPool<>(
-                new PoolConfig(1, 1, 200)
+                new PoolConfig(1, 1, 200, 100, 500, 500, 800)
                 , h2Supplier());
 
         PooledEntity<Connection> cnx = pooler.acquire();
@@ -52,7 +52,7 @@ public class AcquireAndCloseJDBCPooledCnx {
     @Test
     public void tryAcquireCloseAndCheckStateAsync() throws SQLException, InterruptedException {
         DefaultPool<Connection> pooler = new DefaultPool<>(
-                new PoolConfig(1, 1, 200)
+                new PoolConfig(1, 1, 200, 100, 500, 500, 800)
                 , h2Supplier());
 
         PooledEntity<Connection> cnx = pooler.acquire();
@@ -73,7 +73,7 @@ public class AcquireAndCloseJDBCPooledCnx {
     @Test
     public void tryAcquireCloseAndCheckClosedState() throws SQLException, InterruptedException {
         DefaultPool<Connection> pooler = new DefaultPool<>(
-                new PoolConfig(1, 1, 200)
+                new PoolConfig(1, 1, 200, 100, 500, 500, 800)
                 , h2Supplier());
         PooledEntity<Connection> cnx = pooler.acquire();
         Assertions.assertNotNull(cnx);
@@ -89,6 +89,8 @@ public class AcquireAndCloseJDBCPooledCnx {
 
         Assertions.assertThrows(IllegalStateConnexionException.class, () -> pooler.acquire());
 
+        Thread.sleep(900);
+        Assertions.assertDoesNotThrow(() -> pooler.acquire());
 
     }
 

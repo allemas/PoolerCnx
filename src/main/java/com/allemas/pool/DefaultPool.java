@@ -28,7 +28,10 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
-        }, 50, 500, TimeUnit.MILLISECONDS);
+        }, config.initialScanDelay(), config.scanEvery(), TimeUnit.MILLISECONDS);
+
+        scheduler.scheduleAtFixedRate(this::recycle, config.initialRecycleDelay(), config.recycleEvery(), TimeUnit.MILLISECONDS);
+
 
     }
 
@@ -52,9 +55,7 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
                     return poolEntity;
                 });
 
-
         cnx.markUsed();
-
         return cnx;
     }
 
@@ -78,6 +79,24 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
         for (PooledEntity<T> cnx : pool) {
             if (cnx.getConnexion().isClosed()) {
                 cnx.markClosed();
+            }
+        }
+    }
+
+    public void recycle() {
+        List<PooledEntity<T>> canBeNuked = new ArrayList<>();
+
+        for (PooledEntity<T> cnx : pool) {
+            if (cnx.isClosed()) {
+                canBeNuked.add(cnx); // needs traverse the whole List struct
+            }
+        }
+        pool.removeAll(canBeNuked);
+
+        if (pool.size() < this.poolConfig.initIdleConnexions()) {
+            int shouldCreated = this.poolConfig.initIdleConnexions() - pool.size();
+            for (int i = 0; i < shouldCreated; i++) {
+                pool.add(new PooledEntity<>(this.getCnxIdentity(), cnxSupplier));
             }
         }
     }

@@ -40,7 +40,7 @@ public class ConnectionConcurrencyLocksSpecs extends PoolConfigurationTools {
      */
     @Test
     public void concurrent_use_of_same_connection_and_statement_throws() throws Exception {
-        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 4, 200), h2Supplier());
+        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 4, 200, 100, 500, 500, 800), h2Supplier());
         try (PooledEntity<Connection> entity = pool.acquire()) {
             log.info("Thread - Create thread and executes queries with the SAME statement");
             Statement st = entity.getConnexion().createStatement();
@@ -70,7 +70,7 @@ public class ConnectionConcurrencyLocksSpecs extends PoolConfigurationTools {
     @Test
     @ResourceLock("h2-timing-test")
     public void concurrent_use_of_same_connection_with_dedicated_statement() throws Exception {
-        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 4, 200), h2Supplier());
+        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 4, 200, 100, 500, 500, 800), h2Supplier());
         PooledEntity<Connection> entity = pool.acquire();
         CountDownLatch start = new CountDownLatch(1);
 

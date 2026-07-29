@@ -20,7 +20,7 @@ public class H2ProxySpec {
 
     @Test
     public void testH2Proxy() throws Exception {
-        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1,4,200), h2Supplier());
+        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 4, 200, 100, 500, 500, 800), h2Supplier());
         try (PooledEntity<Connection> entity = pool.acquire()) {
 
             try (Statement st = entity.getConnexion().createStatement()) {
