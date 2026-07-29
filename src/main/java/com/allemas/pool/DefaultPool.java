@@ -1,6 +1,7 @@
 package com.allemas.pool;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Supplier;
 
@@ -66,4 +67,11 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
         return createdCnx;
     }
 
+    public void scan() throws SQLException {
+        for (PooledEntity<T> cnx : pool) {
+            if (cnx.getConnexion().isClosed()) {
+                cnx.markClosed();
+            }
+        }
+    }
 }

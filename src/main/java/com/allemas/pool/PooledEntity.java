@@ -76,4 +76,8 @@ public class PooledEntity<T extends Connection> implements AutoCloseable {
         return state;
     }
 
+    public void markClosed() {
+        logger.info("mark closed entity#{} (state was {})", id, state);
+        state = State.CLOSED;
+    }
 }
