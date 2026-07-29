@@ -26,21 +26,21 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
         }
     }
 
-    private PooledEntity<T> buildNewPoolEntity() {
-        if (pool.size() >= poolConfig.maxSize())
-            throw new IllegalStateConnexionException("Pool max size exceeded");
-
-        PooledEntity<T> poolEntity = PooledEntity.build(this.getCnxIdentity(), cnxSupplier, this::recycle);
-        pool.add(poolEntity);
-        return poolEntity;
-    }
-
     @Override
     public PooledEntity<T> acquire() {
-        var cnx = this.pool.stream()
+        PooledEntity<T> cnx = this.pool.stream()
                 .filter(PooledEntity::isIdle)
                 .findFirst()
-                .orElseGet(this::buildNewPoolEntity);
+                .orElseGet(() -> {
+                    if (pool.size() >= poolConfig.maxSize())
+                        throw new IllegalStateConnexionException("Pool max size exceeded");
+
+                    PooledEntity<T> poolEntity = PooledEntity.build(this.getCnxIdentity(), cnxSupplier, this::recycle);
+                    pool.add(poolEntity);
+                    return poolEntity;
+                });
+
+
         cnx.markUsed();
         activesCnx++;
 
