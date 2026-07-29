@@ -3,16 +3,17 @@ package com.allemas.pool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.text.html.Option;
 import java.sql.*;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-public class ConnectionConcurrencyTools {
-    private Logger log = LoggerFactory.getLogger(ConnectionConcurrencyTools.class);
+public class PoolConfigurationTools {
+    private Logger log = LoggerFactory.getLogger(PoolConfigurationTools.class);
 
     public Supplier<Connection> h2Supplier() {
         return () -> {
@@ -35,9 +36,13 @@ public class ConnectionConcurrencyTools {
 
                 log.info("Thread {} - BEFORE executeQuery: {}",
                         Thread.currentThread().getName(), System.currentTimeMillis());
+                long start = ThreadLocalRandom.current().nextLong(1, 5_000_000);
+                long end = start + 10_000_000;
 
-                String query = "SELECT X, COUNT(*), RANDOM() FROM SYSTEM_RANGE(1, 10000000) " +
+
+                String query = "SELECT X, COUNT(*), RANDOM() FROM SYSTEM_RANGE(" + start + ", " + end + ") " +
                         "GROUP BY X ORDER BY X DESC";
+
                 ResultSet rs = st.executeQuery(query);
                 log.info("Thread {} - AFTER executeQuery: {}",
                         Thread.currentThread().getName(), System.currentTimeMillis());

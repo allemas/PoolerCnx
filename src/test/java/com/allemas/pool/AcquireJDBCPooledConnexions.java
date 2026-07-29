@@ -31,7 +31,7 @@ public class AcquireJDBCPooledConnexions {
     public void acquireSimpleConnexionFromPool() throws SQLException, InterruptedException {
         DefaultPool<Connection> pooler = new DefaultPool<>(PoolConfig.auto(), h2Supplier());
 
-        try (PoolEntity<Connection> entity = pooler.acquire()) {
+        try (PooledEntity<Connection> entity = pooler.acquire()) {
             entity.getConnexion()
                     .createStatement()
                     .execute("CREATE TABLE IF NOT EXISTS test(id INT PRIMARY KEY, name VARCHAR(255))");

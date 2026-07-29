@@ -2,13 +2,19 @@ package com.allemas.pool;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class PoolSpecs {
+public class PoolSpecs extends PoolConfigurationTools {
+
+    private static final Logger log = LoggerFactory.getLogger(PoolSpecs.class);
 
     @Test
     public void verifyInstantiationConnexion() {
@@ -81,6 +87,37 @@ public class PoolSpecs {
         Assertions.assertEquals(1, pool.activeConnections());
         Assertions.assertEquals(cnx.getId(), cnx2.getId());
         Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
+    }
+
+    @Test
+    public void tryAcquireConnectionMultiThreaded() throws InterruptedException {
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1, 1, 200), h2Supplier());
+
+        Thread thread1 = new Thread(() -> {
+            try {
+                countDownLatch.await();
+                PooledEntity<Connection> e = pool.acquire();
+                log.info("Acquired connection {}", e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        Thread thread2 = new Thread(() -> {
+            try {
+                countDownLatch.await();
+                PooledEntity<Connection> e = pool.acquire();
+                log.info("Acquired connection {}", e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+
+        thread1.start();
+        thread2.start();
+        countDownLatch.countDown();
     }
 
 

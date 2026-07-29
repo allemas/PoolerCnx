@@ -1,6 +1,6 @@
 package com.allemas.pool;
 
-public enum PoolState {
+public enum State {
     IN_USE,
     IDLE,
     CLOSED,

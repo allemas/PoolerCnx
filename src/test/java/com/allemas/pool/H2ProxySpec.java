@@ -21,14 +21,14 @@ public class H2ProxySpec {
     @Test
     public void testH2Proxy() throws Exception {
         DefaultPool<Connection> pool = new DefaultPool<>(new PoolConfig(1,4,200), h2Supplier());
-        try (PoolEntity<Connection> entity = pool.acquire()) {
+        try (PooledEntity<Connection> entity = pool.acquire()) {
 
             try (Statement st = entity.getConnexion().createStatement()) {
                 st.execute("CREATE TABLE IF NOT EXISTS users (id INT PRIMARY KEY, name VARCHAR(255))");
             }
         }
 
-        try (PoolEntity<Connection> entity = pool.acquire()) {
+        try (PooledEntity<Connection> entity = pool.acquire()) {
             try (PreparedStatement ps = entity.getConnexion().prepareStatement(
                     "INSERT INTO users (id, name) VALUES (?, ?)")) {
                 ps.setInt(1, 1);
@@ -41,7 +41,7 @@ public class H2ProxySpec {
             }
         }
 
-        try (PoolEntity<Connection> entity = pool.acquire()) {
+        try (PooledEntity<Connection> entity = pool.acquire()) {
             try (Statement st = entity.getConnexion().createStatement();
                  ResultSet rs = st.executeQuery("SELECT id, name FROM users ORDER BY id")) {
 

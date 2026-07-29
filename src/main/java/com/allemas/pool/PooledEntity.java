@@ -9,24 +9,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static com.allemas.pool.State.CLOSED;
 
-public class PoolEntity<T extends Connection> implements AutoCloseable {
+public class PooledEntity<T extends Connection> implements AutoCloseable {
 
-    private final Logger logger = LoggerFactory.getLogger(PoolEntity.class);
+    private final Logger logger = LoggerFactory.getLogger(PooledEntity.class);
 
     private static final AtomicInteger ID_GENERATOR = new AtomicInteger(0);
     private final T connexion;
-    private State state = CLOSED;
+    private State state;
     private final int id;
 
-    private Consumer<PoolEntity<T>> recycler;
+    private final Consumer<PooledEntity<T>> recycler;
 
-    public PoolEntity(Supplier<T> connexionBuilder, Consumer<PoolEntity<T>> askRecycling) {
-        id = ID_GENERATOR.getAndIncrement();
+    public PooledEntity(int identity, Supplier<T> connexionBuilder, Consumer<PooledEntity<T>> garbage) {
+        id = identity;
         connexion = connexionBuilder.get();
         state = State.IDLE;
-        recycler = askRecycling;
+        recycler = garbage;
 
         logger.info("Create entity#{}", id);
     }
@@ -51,6 +50,7 @@ public class PoolEntity<T extends Connection> implements AutoCloseable {
     }
 
     public void markUsed() {
+        logger.info("mark used entity#{}", id);
         state = State.IN_USE;
     }
 
@@ -67,9 +67,9 @@ public class PoolEntity<T extends Connection> implements AutoCloseable {
         return "PoolEntity#" + id + "[" + state + "]";
     }
 
-    public static <T extends Connection> PoolEntity<T> build(Supplier<T> connexionBuilder,
-                                                             Consumer<PoolEntity<T>> askRecycling) {
-        return new PoolEntity<>(connexionBuilder, askRecycling);
+    public static <T extends Connection> PooledEntity<T> build(int id, Supplier<T> connexionBuilder,
+                                                               Consumer<PooledEntity<T>> askRecycling) {
+        return new PooledEntity<>(id, connexionBuilder, askRecycling);
     }
 
 }

@@ -20,7 +20,8 @@ The approach:
 
 ### How the LLM is used in this project
 
-The LLM  is used as a **thinking partner**, not as a code generator.
+The LLM is used as a **sounding board**, not as a decision-maker or code generator.
+Every idea, design choice and decision comes exclusively from the human. The LLM never initiates, never proposes directions and never drives the work — it only reacts to what the human brings: asking questions, pointing out contradictions, or confirming that a reasoning holds.
 This is a deliberate choice that shapes how the work happens:
 
 - **No repo access given**. The LLM doesn't see the source tree. Code is

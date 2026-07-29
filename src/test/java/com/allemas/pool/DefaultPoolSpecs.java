@@ -8,7 +8,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.function.Supplier;
 
-public class AcquireJDBCPooledConnexions {
+public class DefaultPoolSpecs {
 
     private static Supplier<Connection> h2Supplier() {
         return () -> {
