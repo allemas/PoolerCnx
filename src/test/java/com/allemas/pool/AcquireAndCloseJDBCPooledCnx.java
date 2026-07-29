@@ -30,7 +30,7 @@ public class AcquireAndCloseJDBCPooledCnx {
     }
 
     @Test
-    public void testAcquire() throws SQLException {
+    public void tryAcquireCloseAndCheckState() throws SQLException {
         DefaultPool<Connection> pooler = new DefaultPool<>(
                 new PoolConfig(1, 1, 200)
                 , h2Supplier());
@@ -39,14 +39,35 @@ public class AcquireAndCloseJDBCPooledCnx {
         Assertions.assertNotNull(cnx);
 
         Assertions.assertFalse(cnx.getConnexion().isClosed());
-        Assertions.assertEquals(cnx.getState(), State.IN_USE);
+        Assertions.assertEquals(State.ACQUIRED, cnx.getState());
+        Assertions.assertEquals(pooler.acquiredConnexions(), 1);
 
         cnx.getConnexion().close();
         pooler.scan();
         Assertions.assertTrue(cnx.getConnexion().isClosed());
-        Assertions.assertEquals(cnx.getState(), State.CLOSED);
+        Assertions.assertEquals(State.CLOSED, cnx.getState());
+        Assertions.assertEquals(pooler.acquiredConnexions(), 0);
     }
 
+    @Test
+    public void tryAcquireCloseAndCheckStateAsync() throws SQLException, InterruptedException {
+        DefaultPool<Connection> pooler = new DefaultPool<>(
+                new PoolConfig(1, 1, 200)
+                , h2Supplier());
 
+        PooledEntity<Connection> cnx = pooler.acquire();
+        Assertions.assertNotNull(cnx);
+
+        Assertions.assertFalse(cnx.getConnexion().isClosed());
+        Assertions.assertEquals(pooler.acquiredConnexions(), 1);
+        Assertions.assertEquals(State.ACQUIRED, cnx.getState());
+
+        cnx.getConnexion().close();
+        Thread.sleep(100); // wait async vacuum
+
+        Assertions.assertTrue(cnx.getConnexion().isClosed());
+        Assertions.assertEquals(State.CLOSED, cnx.getState());
+        Assertions.assertEquals(pooler.acquiredConnexions(), 0);
+    }
 
 }

@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 
@@ -19,15 +18,11 @@ public class PooledEntity<T extends Connection> implements AutoCloseable {
     private State state;
     private final int id;
 
-    private final Consumer<PooledEntity<T>> recycler;
-
-    public PooledEntity(int identity, Supplier<T> connexionBuilder, Consumer<PooledEntity<T>> garbage) {
+    public PooledEntity(int identity, Supplier<T> connexionBuilder) {
         id = identity;
+        logger.info("Create entity#{}", id);
         connexion = connexionBuilder.get();
         state = State.IDLE;
-        recycler = garbage;
-
-        logger.info("Create entity#{}", id);
     }
 
     /**
@@ -39,19 +34,22 @@ public class PooledEntity<T extends Connection> implements AutoCloseable {
     public void close() throws Exception {
         logger.info("close entity#{} (state was {})", id, state);
 
-        if (!state.equals(State.IN_USE))
+        if (!state.equals(State.ACQUIRED))
             throw new IllegalStateConnexionException("This connexion is use");
         state = State.IDLE;
-        recycler.accept(this);
     }
 
     public boolean isIdle() {
         return state.equals(State.IDLE);
     }
 
+    public boolean isClosed() {
+        return state.equals(State.CLOSED);
+    }
+
     public void markUsed() {
         logger.info("mark used entity#{}", id);
-        state = State.IN_USE;
+        state = State.ACQUIRED;
     }
 
     public T getConnexion() {
@@ -67,11 +65,6 @@ public class PooledEntity<T extends Connection> implements AutoCloseable {
         return "PoolEntity#" + id + "[" + state + "]";
     }
 
-    public static <T extends Connection> PooledEntity<T> build(int id, Supplier<T> connexionBuilder,
-                                                               Consumer<PooledEntity<T>> askRecycling) {
-        return new PooledEntity<>(id, connexionBuilder, askRecycling);
-    }
-
     public State getState() {
         return state;
     }
@@ -80,4 +73,10 @@ public class PooledEntity<T extends Connection> implements AutoCloseable {
         logger.info("mark closed entity#{} (state was {})", id, state);
         state = State.CLOSED;
     }
+
+    public static <T extends Connection> PooledEntity<T> build(int id, Supplier<T> connexionBuilder) {
+        return new PooledEntity<>(id, connexionBuilder);
+    }
+
+
 }

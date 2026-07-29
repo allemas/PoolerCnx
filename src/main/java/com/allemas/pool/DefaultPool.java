@@ -3,6 +3,9 @@ package com.allemas.pool;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 public class DefaultPool<T extends Connection> implements Pool<T> {
@@ -10,7 +13,6 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
     private List<PooledEntity<T>> pool;
     private Supplier<T> cnxSupplier;
 
-    private int activesCnx;
     private int createdCnx = 0;
 
     public DefaultPool(PoolConfig config, Supplier<T> connexionBuilder) {
@@ -18,11 +20,21 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
         cnxSupplier = connexionBuilder;
         pool = new ArrayList<>();
         initPool();
+
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                this.scan();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }, 50, 500, TimeUnit.MILLISECONDS);
+
     }
 
     private void initPool() {
         for (int i = 0; i < this.poolConfig.initIdleConnexions(); i++) {
-            pool.add(new PooledEntity<>(this.getCnxIdentity(), cnxSupplier, this::recycle));
+            pool.add(new PooledEntity<>(this.getCnxIdentity(), cnxSupplier));
         }
     }
 
@@ -35,14 +47,13 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
                     if (pool.size() >= poolConfig.maxSize())
                         throw new IllegalStateConnexionException("Pool max size exceeded");
 
-                    PooledEntity<T> poolEntity = PooledEntity.build(this.getCnxIdentity(), cnxSupplier, this::recycle);
+                    PooledEntity<T> poolEntity = PooledEntity.build(this.getCnxIdentity(), cnxSupplier);
                     pool.add(poolEntity);
                     return poolEntity;
                 });
 
 
         cnx.markUsed();
-        activesCnx++;
 
         return cnx;
     }
@@ -52,19 +63,15 @@ public class DefaultPool<T extends Connection> implements Pool<T> {
         return pool.size();
     }
 
-    public int activeConnections() {
-        return activesCnx;
-    }
-
-    private void recycle(PooledEntity<T> entity) {
-        if (entity == null)
-            return;
-        activesCnx--;
-    }
-
     private int getCnxIdentity() {
         createdCnx++;
         return createdCnx;
+    }
+
+    public int acquiredConnexions() {
+        return pool.stream().filter(e -> {
+            return e.getState().equals(State.ACQUIRED);
+        }).toList().size();
     }
 
     public void scan() throws SQLException {

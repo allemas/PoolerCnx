@@ -59,7 +59,7 @@ public class AcquireJDBCPooledConnexions {
         Integer id = cnx.getId();
         Assertions.assertNotNull(cnx);
 
-        Assertions.assertEquals(cnx.getState(), State.IN_USE);
+        Assertions.assertEquals(cnx.getState(), State.ACQUIRED);
         cnx.close();
 
         Assertions.assertEquals(cnx.getState(), State.IDLE);

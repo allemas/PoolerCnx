@@ -9,7 +9,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PoolSpecs extends PoolConfigurationTools {
@@ -30,11 +29,12 @@ public class PoolSpecs extends PoolConfigurationTools {
         AtomicInteger atomicInteger = new AtomicInteger(0);
         DefaultPool<StubCnx> pool = new DefaultPool<>(new PoolConfig(1, 2, 200), () -> new StubCnx(atomicInteger));
 
-        Assertions.assertEquals(0, pool.activeConnections());
+        Assertions.assertEquals(0, pool.acquiredConnexions());
         pool.acquire();
-        Assertions.assertEquals(1, pool.activeConnections());
+        Assertions.assertEquals(1, pool.acquiredConnexions());
         pool.acquire();
-        Assertions.assertEquals(2, pool.activeConnections());
+        Assertions.assertEquals(2, pool.acquiredConnexions());
+
         // should be not possible 3 > 2 (max pool size)
         Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
     }
@@ -44,19 +44,19 @@ public class PoolSpecs extends PoolConfigurationTools {
         AtomicInteger atomicInteger = new AtomicInteger(0);
         DefaultPool<StubCnx> pool = new DefaultPool<>(new PoolConfig(1, 3, 200), () -> new StubCnx(atomicInteger));
         Assertions.assertEquals(1, atomicInteger.get());
-        Assertions.assertEquals(0, pool.activeConnections());
+        Assertions.assertEquals(0, pool.acquiredConnexions());
 
         pool.acquire();
         Assertions.assertEquals(1, atomicInteger.get());
-        Assertions.assertEquals(1, pool.activeConnections());
+        Assertions.assertEquals(1, pool.acquiredConnexions());
 
         pool.acquire();
         Assertions.assertEquals(2, atomicInteger.get());
-        Assertions.assertEquals(2, pool.activeConnections());
+        Assertions.assertEquals(2, pool.acquiredConnexions());
 
         pool.acquire();
         Assertions.assertEquals(3, atomicInteger.get());
-        Assertions.assertEquals(3, pool.activeConnections());
+        Assertions.assertEquals(3, pool.acquiredConnexions());
 
         Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
     }
@@ -76,15 +76,15 @@ public class PoolSpecs extends PoolConfigurationTools {
                 throw new RuntimeException(e);
             }
         });
-        Assertions.assertEquals(0, pool.activeConnections());
+        Assertions.assertEquals(0, pool.acquiredConnexions());
 
         var cnx = pool.acquire();
         Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
 
         cnx.close();
-        Assertions.assertEquals(0, pool.activeConnections());
+        Assertions.assertEquals(0, pool.acquiredConnexions());
         var cnx2 = pool.acquire();
-        Assertions.assertEquals(1, pool.activeConnections());
+        Assertions.assertEquals(1, pool.acquiredConnexions());
         Assertions.assertEquals(cnx.getId(), cnx2.getId());
         Assertions.assertThrows(IllegalStateConnexionException.class, pool::acquire);
     }
